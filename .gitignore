@@ -49,6 +49,7 @@ celerybeat.pid
 ##################################
 .env
 .env.*
+!.env.example
 secrets/
 *.pem
 *.key
