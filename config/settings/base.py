@@ -6,6 +6,8 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'unsafe-secret')
 
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
+USE_DOCKER = os.getenv("USE_DOCKER", "False") == "True"
+
 def get_list_env(name):
     return [x.strip() for x in os.getenv(name, '').split(',') if x.strip()]
 
@@ -69,9 +71,13 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv("POSTGRES_DB"),
+        "USER": os.getenv("POSTGRES_USER"),
+        "PASSWORD": os.getenv("POSTGRES_PASSWORD"),
+        "HOST": os.getenv("POSTGRES_HOST", "localhost"),
+        "PORT": os.getenv("POSTGRES_PORT", "5432"),
     }
 }
 
@@ -109,33 +115,67 @@ LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
 MAX_MB = int(os.getenv('MAX_MB', 5))*1024*1024
 BACKUP_COUNT = os.getenv('BACKUP_COUNT', 3)
 
-LOGGING = {
-    'version': 1,
-    'disable_existing_loggers' : False,
-    'formatters': {
-        'verbose': {
-            'format' : 'TYPE: {levelname}, LOCALIZATION: {module},PROCESS: {processName}, THREAD: {threadName}\nMESSAGE: {message}\n{asctime}\n',
-            'datefmt': 'DATE: %d/%m/%Y TIME: %I:%M:%S %p',
-            'style' : '{',
+if USE_DOCKER:
+    LOGGING = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "verbose": {
+                "format": (
+                    "TYPE: {levelname}, "
+                    "LOCALIZATION: {module}, "
+                    "PROCESS: {processName}, "
+                    "THREAD: {threadName}\n"
+                    "MESSAGE: {message}\n"
+                    "{asctime}\n"
+                ),
+                "datefmt": "DATE: %d/%m/%Y TIME: %I:%M:%S %p",
+                "style": "{",
+            },
         },
-    },
-    'handlers' : {
-        'file' : {
-            'level' : LOG_LEVEL,
-            'class' : 'logging.handlers.RotatingFileHandler',
-            'formatter' : 'verbose',
-            'filename' : os.path.join(BASE_DIR.parent, 'logs/peer2jumble.log'),
-            'maxBytes': MAX_MB,
-            'backupCount': BACKUP_COUNT,
-            'encoding' : 'utf-8',
-            'mode' : 'a',
+        "handlers": {
+            "console": {
+                "class": "logging.StreamHandler",
+                "formatter": "verbose",
+            },
         },
-    },
-    'loggers' : {
-        '' : {
-            'handlers' : ['file'],
-            'level' : LOG_LEVEL,
-            'propagate' : True,
-        }
-    },
-}
+        "root": {
+            "handlers": ["console"],
+            "level": LOG_LEVEL,
+        },
+    }
+else:
+    LOGGING = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "verbose": {
+                "format": (
+                    "TYPE: {levelname}, "
+                    "LOCALIZATION: {module}, "
+                    "PROCESS: {processName}, "
+                    "THREAD: {threadName}\n"
+                    "MESSAGE: {message}\n"
+                    "{asctime}\n"
+                ),
+                "datefmt": "DATE: %d/%m/%Y TIME: %I:%M:%S %p",
+                "style": "{",
+            },
+        },
+        "handlers": {
+            "file": {
+                "level": LOG_LEVEL,
+                "class": "logging.handlers.RotatingFileHandler",
+                "formatter": "verbose",
+                "filename": os.path.join(BASE_DIR.parent, "logs/peer2jumble.log"),
+                "maxBytes": MAX_MB,
+                "backupCount": BACKUP_COUNT,
+                "encoding": "utf-8",
+                "mode": "a",
+            },
+        },
+        "root": {
+            "handlers": ["file"],
+            "level": LOG_LEVEL,
+        },
+    }
