@@ -14,7 +14,7 @@ Backend service based on Django with modular app architecture and API versioning
 ## Project Structure
 
 ```
-peer2jamble/
+peer2jumble/
 ├── apps/
 │ ├── accounts/
 │ ├── services/
