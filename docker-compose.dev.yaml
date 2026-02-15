@@ -1,0 +1,119 @@
+volumes:
+  pgdata:
+  rabbitmq_data:
+  redis_data:
+
+services:
+  # =============================
+  # 1️⃣ PostgreSQL
+  # =============================
+  db:
+    image: postgres:18.2
+    container_name: peer2jumble_db
+    restart: unless-stopped
+    env_file:
+      - .env.docker
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # =============================
+  # 2️⃣ Redis
+  # =============================
+  redis:
+    image: redis:8.6.0
+    container_name: peer2jumble_redis
+    restart: unless-stopped
+    env_file:
+      - .env.docker
+    ports:
+      - "6379:6379"
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+    - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # =============================
+  # 3️⃣ RabbitMQ
+  # =============================
+  rabbitmq:
+    image: rabbitmq:4.2.3-management
+    container_name: peer2jumble_rabbitmq
+    restart: unless-stopped
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    env_file:
+      - .env.docker
+    ports:
+      - "5672:5672"   # AMQP
+      - "15672:15672" # Management UI
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+      - ./docker/rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # =============================
+  # 4️⃣ Django
+  # =============================
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: peer2jumble_web
+    command: python manage.py runserver 0.0.0.0:8000
+    env_file:
+      - .env.docker
+    environment:
+      DJANGO_ENV: dev
+      USE_DOCKER: "True"
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app 
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  # =============================
+  # 5️⃣ Celery worker
+  # =============================
+  celery:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: peer2jumble_celery
+    command: celery -A config worker -l info
+    env_file:
+      - .env.docker
+    volumes:
+      - .:/app
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy

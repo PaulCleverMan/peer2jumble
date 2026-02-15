@@ -6,7 +6,9 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'unsafe-secret')
 
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
-USE_DOCKER = os.getenv("USE_DOCKER", "False") == "True"
+USE_DOCKER = os.getenv('USE_DOCKER', 'False').lower() == 'true'
+
+LOG_DIR = BASE_DIR / 'logs'
 
 def get_list_env(name):
     return [x.strip() for x in os.getenv(name, '').split(',') if x.strip()]
@@ -71,13 +73,13 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.getenv("POSTGRES_DB"),
-        "USER": os.getenv("POSTGRES_USER"),
-        "PASSWORD": os.getenv("POSTGRES_PASSWORD"),
-        "HOST": os.getenv("POSTGRES_HOST", "localhost"),
-        "PORT": os.getenv("POSTGRES_PORT", "5432"),
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': os.getenv('POSTGRES_DB', 'peer2jumble'),
+        'USER': os.getenv('POSTGRES_USER', 'peeruser'),
+        'PASSWORD': os.getenv('POSTGRES_PASSWORD'),
+        'HOST': os.getenv('POSTGRES_HOST', 'localhost'),
+        'PORT': os.getenv('POSTGRES_PORT', '5432'),
     }
 }
 
@@ -110,6 +112,29 @@ STATIC_ROOT = BASE_DIR / 'staticfiles'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
 
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = os.getenv("REDIS_PORT", "6379")
+
+REDIS_URL = f"redis://{REDIS_HOST}:{REDIS_PORT}/0"
+
+RABBITMQ_HOST = os.getenv("RABBITMQ_HOST", "localhost")
+RABBITMQ_PORT = os.getenv("RABBITMQ_PORT", "5672")
+RABBITMQ_USER = os.getenv("RABBITMQ_USER", "guest")
+RABBITMQ_PASSWORD = os.getenv("RABBITMQ_PASSWORD", "guest")
+
+CELERY_BROKER_URL = (
+    f"amqp://{RABBITMQ_USER}:{RABBITMQ_PASSWORD}"
+    f"@{RABBITMQ_HOST}:{RABBITMQ_PORT}//"
+)
+CELERY_RESULT_BACKEND = REDIS_URL
+
+CELERY_ACCEPT_CONTENT = ["json"]
+CELERY_TASK_SERIALIZER = "json"
+CELERY_RESULT_SERIALIZER = "json"
+CELERY_TIMEZONE = "UTC"
+
+CELERY_TASK_ALWAYS_EAGER = True
+CELERY_TASK_EAGER_PROPAGATES = True
 
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
 MAX_MB = int(os.getenv('MAX_MB', 5))*1024*1024
@@ -117,65 +142,66 @@ BACKUP_COUNT = os.getenv('BACKUP_COUNT', 3)
 
 if USE_DOCKER:
     LOGGING = {
-        "version": 1,
-        "disable_existing_loggers": False,
-        "formatters": {
-            "verbose": {
-                "format": (
-                    "TYPE: {levelname}, "
-                    "LOCALIZATION: {module}, "
-                    "PROCESS: {processName}, "
-                    "THREAD: {threadName}\n"
-                    "MESSAGE: {message}\n"
-                    "{asctime}\n"
+        'version': 1,
+        'disable_existing_loggers': False,
+        'formatters': {
+            'verbose': {
+                'format': (
+                    'TYPE: {levelname}, '
+                    'LOCALIZATION: {module}, '
+                    'PROCESS: {processName}, '
+                    'THREAD: {threadName}\n'
+                    'MESSAGE: {message}\n'
+                    '{asctime}\n'
                 ),
-                "datefmt": "DATE: %d/%m/%Y TIME: %I:%M:%S %p",
-                "style": "{",
+                'datefmt': 'DATE: %d/%m/%Y TIME: %I:%M:%S %p',
+                'style': '{',
             },
         },
-        "handlers": {
-            "console": {
-                "class": "logging.StreamHandler",
-                "formatter": "verbose",
+        'handlers': {
+            'console': {
+                'class': 'logging.StreamHandler',
+                'formatter': 'verbose',
             },
         },
-        "root": {
-            "handlers": ["console"],
-            "level": LOG_LEVEL,
+        'root': {
+            'handlers': ['console'],
+            'level': LOG_LEVEL,
         },
     }
 else:
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
     LOGGING = {
-        "version": 1,
-        "disable_existing_loggers": False,
-        "formatters": {
-            "verbose": {
-                "format": (
-                    "TYPE: {levelname}, "
-                    "LOCALIZATION: {module}, "
-                    "PROCESS: {processName}, "
-                    "THREAD: {threadName}\n"
-                    "MESSAGE: {message}\n"
-                    "{asctime}\n"
+        'version': 1,
+        'disable_existing_loggers': False,
+        'formatters': {
+            'verbose': {
+                'format': (
+                    'TYPE: {levelname}, '
+                    'LOCALIZATION: {module}, '
+                    'PROCESS: {processName}, '
+                    'THREAD: {threadName}\n'
+                    'MESSAGE: {message}\n'
+                    '{asctime}\n'
                 ),
-                "datefmt": "DATE: %d/%m/%Y TIME: %I:%M:%S %p",
-                "style": "{",
+                'datefmt': 'DATE: %d/%m/%Y TIME: %I:%M:%S %p',
+                'style': '{',
             },
         },
-        "handlers": {
-            "file": {
-                "level": LOG_LEVEL,
-                "class": "logging.handlers.RotatingFileHandler",
-                "formatter": "verbose",
-                "filename": os.path.join(BASE_DIR.parent, "logs/peer2jumble.log"),
-                "maxBytes": MAX_MB,
-                "backupCount": BACKUP_COUNT,
-                "encoding": "utf-8",
-                "mode": "a",
+        'handlers': {
+            'file': {
+                'level': LOG_LEVEL,
+                'class': 'logging.handlers.RotatingFileHandler',
+                'formatter': 'verbose',
+                'filename': str(LOG_DIR / 'peer2jumble.log'),
+                'maxBytes': MAX_MB,
+                'backupCount': BACKUP_COUNT,
+                'encoding': 'utf-8',
+                'mode': 'a',
             },
         },
-        "root": {
-            "handlers": ["file"],
-            "level": LOG_LEVEL,
+        'root': {
+            'handlers': ['file'],
+            'level': LOG_LEVEL,
         },
     }
