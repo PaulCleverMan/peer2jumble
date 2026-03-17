@@ -12,14 +12,23 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     python3-dev \
     libpq-dev \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY requirements.txt .
+RUN curl -sSL https://install.python-poetry.org | python3 - --version 2.3.2
+ENV PATH="/root/.local/bin:$PATH"
 
-RUN pip install --upgrade pip && \
-    pip install --prefix=/install --no-cache-dir -r requirements.txt
+COPY pyproject.toml poetry.lock ./
 
+ARG BUILD_WORKSPACE=dev
 
+RUN poetry config virtualenvs.create false
+
+RUN if [ "$BUILD_WORKSPACE" = "dev" ]; then \
+        poetry install --no-root --with dev; \
+    else \
+        poetry install --no-root --only main; \
+    fi
 # =========================
 # 2️⃣ Runtime stage
 # =========================
@@ -34,7 +43,8 @@ RUN apt-get update && apt-get install -y \
     libpq5 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /install /usr/local
+COPY --from=builder /usr/local/lib/python3.13 /usr/local/lib/python3.13
+COPY --from=builder /usr/local/bin /usr/local/bin
 
 RUN addgroup --system --gid 1000 jumble && \
     adduser --system --uid 1000 --ingroup jumble jumble

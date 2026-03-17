@@ -78,6 +78,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        BUILD_WORKSPACE: dev
     container_name: peer2jumble_web
     command: python manage.py runserver 0.0.0.0:8000
     env_file:
@@ -104,8 +106,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        BUILD_WORKSPACE: dev
     container_name: peer2jumble_celery
-    command: celery -A config worker -l info
+    command: celery -A config worker -l info -E
     env_file:
       - .env.docker
     volumes:
@@ -113,6 +117,28 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+  # =============================
+  # 6️⃣ Flower
+  # =============================
+  flower:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BUILD_WORKSPACE: dev
+    container_name: peer2jumble_flower
+    command: celery -A config flower --port=5555 --address=0.0.0.0 
+    env_file:
+      - .env.docker
+    volumes:
+      - .:/app
+    ports:
+      - "5555:5555"
+    depends_on:
       redis:
         condition: service_healthy
       rabbitmq:

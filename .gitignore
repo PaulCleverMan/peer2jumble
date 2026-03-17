@@ -26,7 +26,6 @@ env/
 ENV/
 .venv/
 .virtualenv/
-poetry.lock
 
 ##################################
 # Django
