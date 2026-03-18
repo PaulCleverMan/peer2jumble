@@ -3,6 +3,11 @@ volumes:
   rabbitmq_data:
   redis_data:
 
+x-common-env: &common-env
+  DJANGO_ENV: dev
+  USE_DOCKER: "True"
+  UV_NO_SYNC: "0"
+
 services:
   # =============================
   # 1️⃣ PostgreSQL
@@ -85,12 +90,12 @@ services:
     env_file:
       - .env.docker
     environment:
-      DJANGO_ENV: dev
-      USE_DOCKER: "True"
+      <<: *common-env
     ports:
       - "8000:8000"
     volumes:
-      - .:/app 
+      - .:/app
+      - /app/.venv
     depends_on:
       db:
         condition: service_healthy
@@ -112,8 +117,11 @@ services:
     command: celery -A config worker -l info -E
     env_file:
       - .env.docker
+    environment:
+      <<: *common-env
     volumes:
       - .:/app
+      - /app/.venv
     depends_on:
       db:
         condition: service_healthy
@@ -134,8 +142,11 @@ services:
     command: celery -A config flower --port=5555 --address=0.0.0.0 
     env_file:
       - .env.docker
+    environment:
+      <<: *common-env
     volumes:
       - .:/app
+      - /app/.venv
     ports:
       - "5555:5555"
     depends_on:

@@ -1,60 +1,57 @@
 # =========================
-# 1️⃣ Builder stage
+# 0️⃣ Base image
 # =========================
-FROM python:3.13-slim AS builder
+FROM ghcr.io/astral-sh/uv:python3.13-trixie-slim AS base
 
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    UV_LINK_MODE=copy \
+    UV_COMPILE_BYTECODE=1 \
+    UV_PROJECT_ENVIRONMENT=/app/.venv
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    python3-dev \
-    libpq-dev \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+# =========================
+# 1️⃣ Builder stage
+# =========================
+FROM base AS builder
 
-RUN curl -sSL https://install.python-poetry.org | python3 - --version 2.3.2
-ENV PATH="/root/.local/bin:$PATH"
+COPY --from=ghcr.io/astral-sh/uv:0.10.11 /uv /uvx /bin/
 
-COPY pyproject.toml poetry.lock ./
+COPY pyproject.toml uv.lock ./
 
 ARG BUILD_WORKSPACE=dev
 
-RUN poetry config virtualenvs.create false
-
-RUN if [ "$BUILD_WORKSPACE" = "dev" ]; then \
-        poetry install --no-root --with dev; \
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    if [ "$BUILD_WORKSPACE" = "dev" ]; then \
+        uv sync --frozen --no-install-project --group dev; \
     else \
-        poetry install --no-root --only main; \
+        uv sync --frozen --no-dev; \
     fi
+
+COPY . .
+
+RUN --mount=type=cache,target=/root/.cache/uv \
+    if [ "$BUILD_WORKSPACE" = "dev" ]; then \
+        uv sync --frozen --group dev; \
+    else \
+        uv sync --frozen --no-dev; \
+    fi
+
 # =========================
 # 2️⃣ Runtime stage
 # =========================
-FROM python:3.13-slim
+FROM base AS runtime
 
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-
-WORKDIR /app
-
-RUN apt-get update && apt-get install -y \
-    libpq5 \
+RUN apt-get update && apt-get install -y libpq5 \
     && rm -rf /var/lib/apt/lists/*
 
-COPY --from=builder /usr/local/lib/python3.13 /usr/local/lib/python3.13
-COPY --from=builder /usr/local/bin /usr/local/bin
+COPY --from=builder /app /app
 
-RUN addgroup --system --gid 1000 jumble && \
-    adduser --system --uid 1000 --ingroup jumble jumble
-
-COPY --chown=jumble:jumble . .
-
-USER jumble
+ENV PATH="/app/.venv/bin:$PATH"
 
 EXPOSE 8000
 
-CMD ["gunicorn", "config.wsgi:application", \
-     "--bind", "0.0.0.0:8000", \
-     "--workers", "3"]
+CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3"]
