@@ -19,6 +19,9 @@ jobs:
       - name: 🚀 Up
         run: docker compose -f docker-compose.dev.yaml up -d
 
+      - name: 🔒 Docker env
+        run: docker compose -f docker-compose.dev.yaml exec web env
+
       - name: ⏳ Wait for DB
         run: |
           until docker compose -f docker-compose.dev.yaml exec -T db pg_isready -U postgres; do
