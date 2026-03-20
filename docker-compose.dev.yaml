@@ -5,8 +5,11 @@ volumes:
 
 x-common-env: &common-env
   DJANGO_ENV: dev
-  USE_DOCKER: "True"
+  ENV_SOURCE: injected
   UV_NO_SYNC: "0"
+
+x-common-env-file: &common-env-file
+  - .env
 
 services:
   # =============================
@@ -16,8 +19,7 @@ services:
     image: postgres:18.2
     container_name: peer2jumble_db
     restart: unless-stopped
-    env_file:
-      - .env.docker
+    env_file: *common-env-file
     ports:
       - "5432:5432"
     volumes:
@@ -35,8 +37,7 @@ services:
     image: redis:8.6.0
     container_name: peer2jumble_redis
     restart: unless-stopped
-    env_file:
-      - .env.docker
+    env_file: *common-env-file
     ports:
       - "6379:6379"
     command: ["redis-server", "--appendonly", "yes"]
@@ -59,8 +60,7 @@ services:
       nofile:
         soft: 65536
         hard: 65536
-    env_file:
-      - .env.docker
+    env_file: *common-env-file
     ports:
       - "5672:5672"   # AMQP
       - "15672:15672" # Management UI
@@ -87,8 +87,7 @@ services:
         BUILD_WORKSPACE: dev
     container_name: peer2jumble_web
     command: python manage.py runserver 0.0.0.0:8000
-    env_file:
-      - .env.docker
+    env_file: *common-env-file
     environment:
       <<: *common-env
     ports:
@@ -115,8 +114,7 @@ services:
         BUILD_WORKSPACE: dev
     container_name: peer2jumble_celery
     command: celery -A config worker -l info -E
-    env_file:
-      - .env.docker
+    env_file: *common-env-file
     environment:
       <<: *common-env
     volumes:
@@ -140,8 +138,7 @@ services:
         BUILD_WORKSPACE: dev
     container_name: peer2jumble_flower
     command: celery -A config flower --port=5555 --address=0.0.0.0 
-    env_file:
-      - .env.docker
+    env_file: *common-env-file
     environment:
       <<: *common-env
     volumes:

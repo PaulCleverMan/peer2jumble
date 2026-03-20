@@ -6,7 +6,7 @@ SECRET_KEY = os.getenv('SECRET_KEY', 'unsafe-secret')
 
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
 
-USE_DOCKER = os.getenv('USE_DOCKER', 'False').lower() == 'true'
+LOG_TARGET = os.getenv('LOG_TARGET', 'file') # console - output console | file - output in file
 
 LOG_DIR = BASE_DIR / 'logs'
 
@@ -144,7 +144,7 @@ LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
 MAX_MB = int(os.getenv('MAX_MB', 5))*1024*1024
 BACKUP_COUNT = os.getenv('BACKUP_COUNT', 3)
 
-if USE_DOCKER:
+if LOG_TARGET == 'console':
     LOGGING = {
         'version': 1,
         'disable_existing_loggers': False,
@@ -173,7 +173,7 @@ if USE_DOCKER:
             'level': LOG_LEVEL,
         },
     }
-else:
+elif LOG_TARGET == 'file':
     LOG_DIR.mkdir(parents=True, exist_ok=True)
     LOGGING = {
         'version': 1,
