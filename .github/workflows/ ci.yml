@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+
+jobs:
+  build-dev:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 📥 Checkout
+        uses: actions/checkout@v4
+
+      - name: 🧾 Create env
+        run: cp .env.example .env.docker
+
+      - name: 🐳 Build
+        run: docker compose -f docker-compose.dev.yaml build
+
+      - name: 🚀 Up
+        run: docker compose -f docker-compose.dev.yaml up -d
+
+      - name: ⏳ Wait for DB
+        run: |
+          until docker compose exec -T db pg_isready -U postgres; do
+            sleep 2
+          done
+
+      - name: 🔍 Django check
+        run: docker compose exec -T web python manage.py check
+
+      - name: 🗃️ Migrate
+        run: docker compose exec -T web python manage.py migrate --noinput
+
+      - name: 🧪 Tests
+        run: docker compose exec -T web python manage.py test
+
+      - name: 🐇 Celery check
+        run: docker compose exec -T celery celery -A config inspect ping
+
+      - name: 🧹 Down
+        if: always()
+        run: docker compose down -v
