@@ -1,11 +1,12 @@
 #!/bin/bash
 
-set -e
+set -uo pipefail
 
 TARGET="${1:-dev}"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-ENV_FILE="$ROOT_DIR/.env.local"
+
+source "$ROOT_DIR/scripts/common/helpers.sh"
 
 # =========================================================
 # Validate target
@@ -15,21 +16,15 @@ case "$TARGET" in
   dev|prod)
     ;;
   *)
-    echo "❌ Invalid environment: $TARGET"
-    exit 1
+    fail "Invalid environment: $TARGET"
     ;;
 esac
 
 # =========================================================
-# Load env
+# Load environment
 # =========================================================
 
-if [ ! -f "$ENV_FILE" ]; then
-  echo "❌ .env.local not found"
-  exit 1
-fi
-
-source "$ENV_FILE"
+load_env "$ROOT_DIR/.env.local"
 
 # =========================================================
 # Runtime environment
@@ -45,13 +40,17 @@ cd "$ROOT_DIR"
 # =========================================================
 
 if [ "$TARGET" = "prod" ]; then
-  echo "⚙ Starting Gunicorn..."
-  
+
+  print_header "Starting Gunicorn"
+
   uv run gunicorn config.wsgi:application \
     --bind 0.0.0.0:8000 \
     --workers 3
-else
-  echo "⚙ Starting Django development server..."
 
-  uv run python manage.py runserver localhost:8000
+else
+
+  print_header "Starting Django development server"
+
+  uv run python manage.py runserver 0.0.0.0:8000
+
 fi

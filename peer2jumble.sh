@@ -1,6 +1,6 @@
 #!/bin/bash
 
-set -e
+set -uo pipefail
 
 MODE=$1
 COMMAND=$2
@@ -21,6 +21,7 @@ Modes:
 Commands:
   setup
   run
+  start
   stop
   restart
   status

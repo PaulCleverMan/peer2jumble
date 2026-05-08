@@ -1,9 +1,5 @@
 #!/bin/bash
 
-# =========================================================
-# Pretty header
-# =========================================================
-
 print_header() {
   local TITLE=$1
 
@@ -14,144 +10,195 @@ print_header() {
   echo ""
 }
 
+fail() {
+  echo ""
+  echo "=================================================="
+  echo "❌ $1"
+  echo "=================================================="
+  echo ""
+  exit 1
+}
+
+load_env() {
+
+  local ENV_FILE=$1
+
+  if [ ! -f "$ENV_FILE" ]; then
+    fail "Environment file not found: $ENV_FILE"
+  fi
+
+  set -a
+  source "$ENV_FILE"
+  set +a
+
+  echo "✔ Environment loaded: $ENV_FILE"
+}
+
 # =========================================================
-# Generic dependency checker
-#
-# Args:
-#   1 - command/binary
-#   2 - service name (or "none")
-#   3 - human readable name
-#   4 - install url
+# Dependency registry object
 # =========================================================
 
-check_dependency() {
+DEP_TYPE=""
+DEP_NAME=""
+DEP_BIN=""
+DEP_SERVICE=""
+DEP_URL=""
+DEP_REQUIRED=""
+
+define_dep() {
+
+  DEP_TYPE=$1
+  DEP_NAME=$2
+  DEP_BIN=$3
+  DEP_SERVICE=$4
+  DEP_URL=$5
+  DEP_REQUIRED=${6:-1}
+}
+
+dependency_check() {
+
+  if [ "$DEP_TYPE" = "tool" ]; then
+
+    check_tool \
+      "$DEP_BIN" \
+      "$DEP_NAME" \
+      "$DEP_URL" \
+      "$DEP_REQUIRED"
+
+    return $?
+  fi
+
+  if [ "$DEP_TYPE" = "service" ]; then
+
+    check_service \
+      "$DEP_BIN" \
+      "$DEP_SERVICE" \
+      "$DEP_NAME" \
+      "$DEP_URL" \
+      "$DEP_REQUIRED"
+
+    return $?
+  fi
+}
+
+dependency_status() {
+
+  if [ "$DEP_TYPE" != "service" ]; then
+    return 0
+  fi
+
+  check_service_active "$DEP_SERVICE"
+}
+
+dependency_stop() {
+
+  if [ "$DEP_TYPE" != "service" ]; then
+    return 0
+  fi
+
+  stop_service "$DEP_SERVICE"
+}
+
+dependency_start() {
+
+  if [ "$DEP_TYPE" != "service" ]; then
+    return 0
+  fi
+
+  start_service "$DEP_SERVICE"
+}
+
+dependency_restart() {
+
+  if [ "$DEP_TYPE" != "service" ]; then
+    return 0
+  fi
+
+  restart_service "$DEP_SERVICE"
+}
+
+dependency_log() {
+
+  if [ "$DEP_TYPE" != "service" ]; then
+    return 0
+  fi
+
+  get_log "$DEP_SERVICE"
+}
+
+# =========================================================
+# TOOL CHECK (uv, git, docker cli, etc.)
+# =========================================================
+
+check_tool() {
 
   local CMD=$1
+  local NAME=$2
+  local URL=$3
+  local REQUIRED=${4:-1}
+
+  if command -v "$CMD" >/dev/null 2>&1; then
+    echo "✔ $NAME found ($CMD)"
+    return 0
+  fi
+
+  if [ "$REQUIRED" -eq 0 ]; then
+    echo "⚠ $NAME missing (optional)"
+    return 2
+  fi
+
+  echo "❌ $NAME missing"
+  echo "   Install: $URL"
+  return 1
+}
+
+# =========================================================
+# SERVICE CHECK (systemd)
+# =========================================================
+
+check_service() {
+
+  local BIN=$1
   local SERVICE=$2
   local NAME=$3
   local URL=$4
-
-  local FOUND=0
+  local REQUIRED=${5:-1}
 
   # -------------------------------------------------------
-  # Binary check
+  # Binary exists
   # -------------------------------------------------------
 
-  if command -v "$CMD" >/dev/null 2>&1; then
-    echo "✔ $NAME binary found ($CMD)"
-    FOUND=1
+  if command -v "$BIN" >/dev/null 2>&1; then
+    echo "✔ $NAME binary found ($BIN)"
+    return 0
   fi
 
   # -------------------------------------------------------
-  # Service check
+  # Systemd service exists
   # -------------------------------------------------------
 
-  if [ "$FOUND" -eq 0 ] && [ "$SERVICE" != "none" ]; then
-
-    if systemctl list-unit-files 2>/dev/null | grep -q "^$SERVICE"; then
-      echo "✔ $NAME service found ($SERVICE)"
-      FOUND=1
-    fi
-
+  if systemctl cat "$SERVICE" >/dev/null 2>&1; then
+    echo "✔ $NAME service found ($SERVICE)"
+    return 0
   fi
 
   # -------------------------------------------------------
-  # Not found
+  # Missing
   # -------------------------------------------------------
 
-  if [ "$FOUND" -eq 0 ]; then
-
-    echo "❌ $NAME not found"
-    echo "   Installation guide:"
-    echo "   $URL"
-    echo ""
-
-    return 1
+  if [ "$REQUIRED" -eq 0 ]; then
+    echo "⚠ $NAME missing (optional)"
+    return 2
   fi
 
-  return 0
+  echo "❌ $NAME missing"
+  echo "   Install: $URL"
+
+  return 1
 }
 
 # =========================================================
-# uv
-# =========================================================
-
-check_uv() {
-
-  check_dependency \
-    "uv" \
-    "none" \
-    "uv" \
-    "https://docs.astral.sh/uv/getting-started/installation/"
-}
-
-# =========================================================
-# PostgreSQL
-# =========================================================
-
-check_postgres() {
-
-  check_dependency \
-    "psql" \
-    "postgresql.service" \
-    "PostgreSQL" \
-    "https://www.postgresql.org/download/"
-}
-
-# =========================================================
-# Redis
-# =========================================================
-
-check_redis() {
-
-  check_dependency \
-    "redis-server" \
-    "redis-server.service" \
-    "Redis" \
-    "https://redis.io/docs/latest/operate/oss_and_stack/install/archive/install-redis/"
-}
-
-# =========================================================
-# RabbitMQ
-# =========================================================
-
-check_rabbitmq() {
-
-  check_dependency \
-    "rabbitmqctl" \
-    "rabbitmq-server.service" \
-    "RabbitMQ" \
-    "https://www.rabbitmq.com/download.html"
-}
-
-# =========================================================
-# Nginx
-# =========================================================
-
-check_nginx() {
-
-  check_dependency \
-    "nginx" \
-    "nginx.service" \
-    "Nginx" \
-    "https://nginx.org/en/download.html"
-}
-
-# =========================================================
-# Docker
-# =========================================================
-
-check_docker() {
-
-  check_dependency \
-    "docker" \
-    "docker.service" \
-    "Docker" \
-    "https://docs.docker.com/engine/install/"
-}
-
-# =========================================================
-# Docker Compose
+# DOCKER COMPOSE (special case tool)
 # =========================================================
 
 check_docker_compose() {
@@ -162,33 +209,12 @@ check_docker_compose() {
   fi
 
   echo "❌ Docker Compose not found"
-  echo "   Installation guide:"
   echo "   https://docs.docker.com/compose/install/"
-  echo ""
-
   return 1
 }
 
 # =========================================================
-# Service active checker
-# =========================================================
-
-check_service_active() {
-
-  local SERVICE=$1
-
-  if systemctl is-active --quiet "$SERVICE"; then
-    echo "✔ Service active: $SERVICE"
-    return 0
-  fi
-
-  echo "⚠ Service inactive: $SERVICE"
-
-  return 1
-}
-
-# =========================================================
-# Port checker
+# PORT CHECK
 # =========================================================
 
 check_port() {
@@ -196,12 +222,72 @@ check_port() {
   local PORT=$1
 
   if ss -tuln | grep -q ":$PORT "; then
-    echo "⚠ Port already in use: $PORT"
+    echo "⚠ Port in use: $PORT"
     return 1
   fi
 
-  echo "✔ Port available: $PORT"
-
+  echo "✔ Port free: $PORT"
   return 0
 }
 
+# =========================================================
+# SYSTEMD OPERATIONS
+# =========================================================
+
+stop_service() {
+
+  local SERVICE=$1
+
+  echo "→ Stopping $SERVICE"
+  sudo systemctl stop "$SERVICE" 2>/dev/null || true
+}
+
+start_service() {
+
+  local SERVICE=$1
+
+  echo "→ Starting $SERVICE"
+  sudo systemctl start "$SERVICE" 2>/dev/null || true
+}
+
+restart_service() {
+
+  local SERVICE=$1
+
+  echo "→ Restarting $SERVICE"
+  sudo systemctl restart "$SERVICE" 2>/dev/null || true
+}
+
+check_service_active() {
+
+  local SERVICE=$1
+
+  if systemctl is-active --quiet "$SERVICE"; then
+    echo "✔ $SERVICE active"
+    return 0
+  fi
+
+  echo "⚠ $SERVICE inactive"
+  return 1
+}
+
+get_log() {
+
+  local SERVICE=$1
+
+  if ! systemctl cat "$SERVICE" >/dev/null 2>&1; then
+    echo "❌ Service not found: $SERVICE"
+    return 1
+  fi
+
+  echo ""
+  echo "→ Streaming logs: $SERVICE"
+  echo ""
+
+  set +e
+  sudo journalctl -u "$SERVICE" -f
+  set -e
+
+  echo ""
+  echo "→ Log stream stopped"
+}
