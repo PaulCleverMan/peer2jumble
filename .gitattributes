@@ -1,0 +1,53 @@
+# =========================================================
+# Global rule: normalize all text files to LF
+# =========================================================
+
+* text=auto eol=lf
+
+# =========================================================
+# Shell scripts (CRLF = guaranteed bugs in your setup)
+# =========================================================
+
+*.sh text eol=lf
+
+# =========================================================
+# Environment files (IMPORTANT for bash "source")
+# =========================================================
+
+*.env text eol=lf
+*.env.* text eol=lf
+
+# =========================================================
+# Python (Django project)
+# =========================================================
+
+*.py text eol=lf
+
+# =========================================================
+# YAML / Docker / orchestration
+# =========================================================
+
+*.yml text eol=lf
+*.yaml text eol=lf
+
+# Docker files
+Dockerfile text eol=lf
+docker-compose*.yaml text eol=lf
+docker-compose*.yml text eol=lf
+
+# =========================================================
+# JSON configs
+# =========================================================
+
+*.json text eol=lf
+
+# =========================================================
+# Keep binaries untouched
+# =========================================================
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.zip binary
+*.tar.gz binary
