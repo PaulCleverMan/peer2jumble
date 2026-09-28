@@ -1,0 +1,30 @@
+name: CI
+on: [push, pull_request]
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        run: cp .env.example .env
+      - name: Validate Docker
+        run: ./peer2jumble.sh setup
+      - name: Build
+        run: ./peer2jumble.sh build
+      - name: Start
+        run: ./peer2jumble.sh up
+      - name: Django check
+        run: ./peer2jumble.sh check
+      - name: Migrate
+        run: ./peer2jumble.sh migrate
+      - name: Tests
+        run: ./peer2jumble.sh test
+      - name: Celery check
+        run: docker compose -f docker-compose.dev.yaml exec -T celery celery -A config inspect ping --timeout 10
+      - name: Diagnostic logs
+        if: failure()
+        run: docker compose -f docker-compose.dev.yaml logs --no-color --tail 200
+      - name: Stop
+        if: always()
+        run: ./peer2jumble.sh down --volumes

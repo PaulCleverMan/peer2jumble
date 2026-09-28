@@ -1,62 +1,22 @@
-#!/bin/bash
-
-set -uo pipefail
-
-MODE=$1
-COMMAND=$2
-TARGET=${3:-dev}
-
+#!/usr/bin/env bash
+set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-show_help() {
-cat << EOF
-
-Usage:
-  ./peer2jumble.sh <mode> <command> [environment]
-
-Modes:
-  local
-  docker
-
-Commands:
-  setup
-  run
-  start
-  stop
-  restart
-  status
-  logs
-  clean
-
-Docker-only:
-  build
-  up
-  down
-
-Environment:
-  dev (default)
-  prod
-
-Examples:
-  ./peer2jumble.sh local run
-  ./peer2jumble.sh local run prod
-
-  ./peer2jumble.sh docker build prod
-  ./peer2jumble.sh docker up dev
-
-EOF
+usage() {
+  echo "Usage: ./peer2jumble.sh <setup|build|up|down|restart|status|urls|logs|check|migrate|createsuperuser|test> [dev|prod] [arguments...]"
 }
-
-if [ $# -lt 2 ]; then
-  show_help
-  exit 1
+if [[ $# -eq 0 || "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+  usage
+  exit 0
 fi
-
-SCRIPT="$ROOT_DIR/scripts/$MODE/$COMMAND.sh"
-
-if [ ! -f "$SCRIPT" ]; then
-  echo "Unknown command: $MODE $COMMAND"
-  exit 1
+COMMAND=$1
+shift
+TARGET=dev
+if [[ "${1:-}" == dev || "${1:-}" == prod ]]; then
+  TARGET=$1
+  shift
 fi
-
-bash "$SCRIPT" "$TARGET"
+case "$COMMAND" in
+  setup|build|up|down|restart|status|urls|logs|check|migrate|createsuperuser|test) ;;
+  *) usage >&2; echo "Unknown command: $COMMAND" >&2; exit 2 ;;
+esac
+exec bash "$ROOT_DIR/scripts/docker/$COMMAND.sh" "$TARGET" "$@"

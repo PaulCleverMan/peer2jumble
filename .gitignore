@@ -48,7 +48,7 @@ celerybeat.pid
 ##################################
 .env
 .env.*
-!.env.example.*
+!.env.example
 secrets/
 *.pem
 *.key
@@ -131,3 +131,4 @@ terraform.tfstate.*
 ##################################
 backups/
 dump/
+.aider*

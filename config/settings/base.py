@@ -1,14 +1,9 @@
 import os
-import logging
 from config.env import BASE_DIR
 
 SECRET_KEY = os.getenv('SECRET_KEY', 'unsafe-secret')
 
 DEBUG = os.getenv('DEBUG', 'False').lower() == 'true'
-
-LOG_TARGET = os.getenv('LOG_TARGET', 'file') # console - output console | file - output in file
-
-LOG_DIR = BASE_DIR / 'logs'
 
 def get_list_env(name):
     return [x.strip() for x in os.getenv(name, '').split(',') if x.strip()]
@@ -141,71 +136,33 @@ CELERY_WORKER_SEND_TASK_EVENTS = True
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 
 LOG_LEVEL = os.getenv('LOG_LEVEL', 'INFO')
-MAX_MB = int(os.getenv('MAX_MB', 5))*1024*1024
-BACKUP_COUNT = os.getenv('BACKUP_COUNT', 3)
 
-if LOG_TARGET == 'console':
-    LOGGING = {
-        'version': 1,
-        'disable_existing_loggers': False,
-        'formatters': {
-            'verbose': {
-                'format': (
-                    'TYPE: {levelname}, '
-                    'LOCALIZATION: {module}, '
-                    'PROCESS: {processName}, '
-                    'THREAD: {threadName}\n'
-                    'MESSAGE: {message}\n'
-                    '{asctime}\n'
-                ),
-                'datefmt': 'DATE: %d/%m/%Y TIME: %I:%M:%S %p',
-                'style': '{',
-            },
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': (
+                'TYPE: {levelname}, '
+                'LOCALIZATION: {module}, '
+                'PROCESS: {processName}, '
+                'THREAD: {threadName}\n'
+                'MESSAGE: {message}\n'
+                '{asctime}\n'
+            ),
+            'datefmt': 'DATE: %d/%m/%Y TIME: %I:%M:%S %p',
+            'style': '{',
         },
-        'handlers': {
-            'console': {
-                'class': 'logging.StreamHandler',
-                'formatter': 'verbose',
-            },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'stream': 'ext://sys.stdout',
+            'formatter': 'verbose',
         },
-        'root': {
-            'handlers': ['console'],
-            'level': LOG_LEVEL,
-        },
-    }
-elif LOG_TARGET == 'file':
-    LOG_DIR.mkdir(parents=True, exist_ok=True)
-    LOGGING = {
-        'version': 1,
-        'disable_existing_loggers': False,
-        'formatters': {
-            'verbose': {
-                'format': (
-                    'TYPE: {levelname}, '
-                    'LOCALIZATION: {module}, '
-                    'PROCESS: {processName}, '
-                    'THREAD: {threadName}\n'
-                    'MESSAGE: {message}\n'
-                    '{asctime}\n'
-                ),
-                'datefmt': 'DATE: %d/%m/%Y TIME: %I:%M:%S %p',
-                'style': '{',
-            },
-        },
-        'handlers': {
-            'file': {
-                'level': LOG_LEVEL,
-                'class': 'logging.handlers.RotatingFileHandler',
-                'formatter': 'verbose',
-                'filename': str(LOG_DIR / 'peer2jumble.log'),
-                'maxBytes': MAX_MB,
-                'backupCount': BACKUP_COUNT,
-                'encoding': 'utf-8',
-                'mode': 'a',
-            },
-        },
-        'root': {
-            'handlers': ['file'],
-            'level': LOG_LEVEL,
-        },
-    }
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': LOG_LEVEL,
+    },
+}

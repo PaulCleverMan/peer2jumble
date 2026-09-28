@@ -6,7 +6,9 @@ volumes:
 x-common-env: &common-env
   DJANGO_ENV: dev
   ENV_SOURCE: injected
-  UV_NO_SYNC: "0"
+  POSTGRES_HOST: db
+  REDIS_HOST: redis
+  RABBITMQ_HOST: rabbitmq
 
 x-common-env-file: &common-env-file
   - .env

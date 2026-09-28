@@ -43,3 +43,10 @@ tmp/
 .DS_Store
 Thumbs.db
 desktop.ini
+
+# Repository metadata and local assistant history
+.git/
+.aider*
+.agents/
+.codex/
+backups/
