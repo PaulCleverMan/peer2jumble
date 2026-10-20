@@ -11,6 +11,7 @@ logger = logging.getLogger(__name__)
 API_VERSIONS = ['v1']
 APPS = [
     'accounts',
+    'hosts',
     'services',
     'scenarios',
     'simulations',

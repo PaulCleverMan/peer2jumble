@@ -26,6 +26,7 @@ THIRD_PARTY_APPS = [
 
 LOCAL_APPS = [
     'apps.accounts',
+    'apps.hosts',
     'apps.services',
     'apps.scenarios',
     'apps.simulations',
