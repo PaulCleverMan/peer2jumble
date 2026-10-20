@@ -1,7 +1,7 @@
 # =========================
 # 0️⃣ Base image
 # =========================
-FROM ghcr.io/astral-sh/uv:python3.13-trixie-slim AS base
+FROM python:3.13.16-slim-trixie AS base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -16,7 +16,9 @@ WORKDIR /app
 # =========================
 FROM base AS builder
 
-COPY --from=ghcr.io/astral-sh/uv:0.10.11 /uv /uvx /bin/
+COPY --from=ghcr.io/astral-sh/uv:0.13.0 /uv /uvx /bin/
+
+RUN uv --version
 
 COPY pyproject.toml uv.lock ./
 
@@ -35,9 +37,9 @@ COPY . .
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     if [ "$BUILD_WORKSPACE" = "dev" ]; then \
-        uv sync --frozen --group dev; \
+        uv sync --locked --group dev; \
     else \
-        uv sync --frozen --no-dev; \
+        uv sync --locked --no-dev; \
     fi
 
 # =========================
